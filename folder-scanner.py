@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import (
     QHeaderView, QMenuBar, QMenu, QMainWindow, QAction, QDialog, QAbstractItemView
 )
 from PyQt5.QtGui import QKeySequence, QIcon
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QThread, pyqtSignal
 
 # This function is used to load the favicon when the application is packaged
 def resource_path(relative_path):
@@ -18,6 +18,20 @@ def resource_path(relative_path):
         base_path = os.path.abspath(".")
 
     return os.path.join(base_path, relative_path)
+
+class FolderScanner(QThread):
+    folder_found = pyqtSignal(str)
+    finished_scanning = pyqtSignal()
+
+    def __init__(self, folder):
+        super().__init__()
+        self.folder = folder
+
+    def run(self):
+        for dirpath, dirnames, filenames in os.walk(self.folder):
+            if not dirnames and not filenames:
+                self.folder_found.emit(dirpath)
+        self.finished_scanning.emit()
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -76,6 +90,10 @@ class MainWindow(QMainWindow):
         layout.addLayout(folder_layout)
         layout.addLayout(button_layout)
         layout.addWidget(self.table)
+
+        # Add total count label
+        self.total_count_label = QLabel("")
+        layout.addWidget(self.total_count_label)
 
         central_widget.setLayout(layout)
         self.setCentralWidget(central_widget)
@@ -163,6 +181,10 @@ class MainWindow(QMainWindow):
             if not dirnames and not filenames:
                 empty_folders.append(dirpath)
 
+        self.table.setRowCount(0)
+        self.progress_bar.setValue(0)
+        self.total_count_label.setText('Scanning...')
+
         self.progress_bar.setMaximum(len(empty_folders))
         for i, folder in enumerate(empty_folders):
             checkbox = QCheckBox()
@@ -183,6 +205,29 @@ class MainWindow(QMainWindow):
         self.table.setSelectionMode(QAbstractItemView.MultiSelection)
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
+
+        self.total_count_label.setText(f'Scan complete. Total empty folders found: {len(empty_folders)}')
+
+
+    def add_folder(self, folder):
+        i = self.table.rowCount()
+        checkbox = QCheckBox()
+        checkbox_layout = QHBoxLayout()
+        checkbox_layout.addWidget(checkbox)
+        checkbox_layout.setAlignment(Qt.AlignCenter)
+        checkbox_layout.setContentsMargins(0, 0, 0, 0)
+        checkbox_widget = QWidget()
+        checkbox_widget.setLayout(checkbox_layout)
+        self.table.insertRow(i)
+        self.table.setCellWidget(i, 0, checkbox_widget)
+        self.table.setItem(i, 1, QTableWidgetItem(os.path.basename(folder)))
+        self.table.setItem(i, 2, QTableWidgetItem(folder))
+        self.progress_bar.setValue((i+1) * 100 // self.table.rowCount())
+        
+
+
+    def on_scan_finished(self):
+        self.total_count_label.setText(f'Scan complete. Total empty folders found: {self.table.rowCount()}')
 
     def contextMenuEvent(self, event):
         item = self.table.itemAt(event.pos())
