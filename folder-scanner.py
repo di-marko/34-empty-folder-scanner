@@ -132,7 +132,7 @@ class MainWindow(QMainWindow):
 
         linkedin_button = QPushButton("LinkedIn", about_window)
         linkedin_button.clicked.connect(
-            lambda: self.open_link("https://www.linkedin.com/in/dmitri-mark%C3%A9lov/")
+            lambda: self.open_link("https://www.linkedin.com/in/dimamarkelov/")
         )
         linkedin_button.setFocusPolicy(Qt.NoFocus)
         button_layout.addWidget(linkedin_button)
@@ -140,6 +140,9 @@ class MainWindow(QMainWindow):
         layout.addLayout(button_layout)
         about_window.setLayout(layout)
         about_window.exec_()
+
+    def open_link(self, link):
+        os.system(f'start "" "{link}"')
 
     def browse_folder(self):
         folder = QFileDialog.getExistingDirectory(self, "Select Folder")
